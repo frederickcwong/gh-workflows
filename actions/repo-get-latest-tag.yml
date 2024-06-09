@@ -1,0 +1,48 @@
+# A reuseable workflow that will output the latest tag and its commit id
+#
+# The workflow lookup the last tag using the "ref" input as the anchor
+# point, and find the last tag that was pushed to the github.
+# If the "ref" is a branch name, the anchor point is the HEAD of the branch.
+# If the "ref" is a commit id, the anchor point is that particular commit
+#
+# inputs:
+# - ref: a commit id in the current repo ($github context), or a branch name
+#        it is default to the "main" branch
+#
+# outputs:
+# - tag: the latest tag
+# - sha: the commit id of the latest tag
+#
+name: Get Latest Tag from Commit
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: "main"
+    outputs:
+      tag:
+        description: the latest tag
+        value: ${{jobs.get-latest-tag.outputs.tag}}
+      sha:
+        description: the commit id of the latest tag
+        value: ${{jobs.get-latest-tag.outputs.sha}}
+jobs:
+  get-latest-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{steps.get-latest.outputs.latest-tag}}
+      sha: ${{steps.get-latest.outputs.latest-sha}}
+    steps:
+      - name: Checkout code using repo_ref
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{inputs.ref}}
+      - name: Get the latest tag from commit id
+        id: get-latest
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          LATEST_SHA=$(git rev-list -n 1 ${LATEST_TAG})
+          echo "latest-tag=${LATEST_TAG}" >> "$GITHUB_OUTPUT"
+          echo "latest-sha=${LATEST_SHA}" >> "$GITHUB_OUTPUT"
